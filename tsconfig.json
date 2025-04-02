@@ -25,7 +25,7 @@
     "noUncheckedIndexedAccess": true,
 
     /* Alias */
-     "baseUrl": "./src"
+    "baseUrl": "./src"
   },
   "include": ["src"]
 }
