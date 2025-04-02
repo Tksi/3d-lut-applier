@@ -14,8 +14,6 @@
     "fix": "prettier . --cache --write --log-level warn --ignore-path .gitignore; npm run lint:check -- --fix; npm run type:check"
   },
   "devDependencies": {
-    "typescript": "~5.7.2",
-    "vite": "^6.2.0",
     "@stylistic/eslint-plugin": "^4.2.0",
     "eslint": "^9.23.0",
     "eslint-config-flat-gitignore": "^2.1.0",
@@ -24,6 +22,9 @@
     "eslint-plugin-jsdoc": "^50.6.9",
     "eslint-plugin-unicorn": "^58.0.0",
     "prettier": "^3.5.3",
-    "typescript-eslint": "^8.29.0"
+    "typescript": "~5.7.2",
+    "typescript-eslint": "^8.29.0",
+    "vite": "^6.2.0",
+    "vite-tsconfig-paths": "^5.1.4"
   }
 }

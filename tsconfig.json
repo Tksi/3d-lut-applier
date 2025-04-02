@@ -22,7 +22,10 @@
     "noImplicitAny": true,
     "exactOptionalPropertyTypes": true,
     "noImplicitReturns": true,
-    "noUncheckedIndexedAccess": true
+    "noUncheckedIndexedAccess": true,
+
+    /* Alias */
+     "baseUrl": "./src"
   },
   "include": ["src"]
 }
