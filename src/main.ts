@@ -8,6 +8,7 @@ const appliedCanvas = document.querySelector<HTMLCanvasElement>('#applied')!;
 const container = document.querySelector<HTMLDivElement>('.canvas-container')!;
 const sliderLine = document.querySelector<HTMLDivElement>('.slider-line')!;
 const loadingOverlay = document.querySelector<HTMLDivElement>('#loading')!;
+const downloadBtn = document.querySelector<HTMLButtonElement>('#download-btn')!;
 
 let currentCube: Cube | null = null;
 let lutWorker: Worker | null = null;
@@ -19,6 +20,8 @@ let lutWorker: Worker | null = null;
 const processAndDrawImage = async (
   imageSource: File | HTMLImageElement | string,
 ) => {
+  showLoading(true);
+
   await drawImage(
     originalCanvas,
     imageSource instanceof File
@@ -55,8 +58,6 @@ const applyLutWithWorker = (
 
       return;
     }
-
-    showLoading(true);
 
     const handleMessage = (event: MessageEvent<LutWorkerResponse>) => {
       if (event.data.type === 'lut-applied') {
@@ -190,6 +191,28 @@ const initializeWorker = () => {
   });
 };
 
+/**
+ * appliedCanvasの内容をJPEGとしてダウンロード
+ */
+const downloadCanvasAsJpeg = () => {
+  const canvas = appliedCanvas;
+  const link = document.createElement('a');
+
+  canvas.toBlob(
+    (blob) => {
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        link.href = url;
+        link.download = `lut-applied-${Date.now()}.jpeg`;
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+    },
+    'image/jpeg',
+    0.8,
+  );
+};
+
 // 初期化処理
 const initializeApp = async () => {
   try {
@@ -203,6 +226,9 @@ const initializeApp = async () => {
 
     // 初期画像を読み込み
     await processAndDrawImage('/img.avif');
+
+    // ダウンロードボタンのイベントリスナーを追加
+    downloadBtn.addEventListener('click', downloadCanvasAsJpeg);
   } catch (err) {
     console.error('初期化エラー:', err);
   }

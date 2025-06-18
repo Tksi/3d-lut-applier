@@ -5,13 +5,13 @@ export type LutWorkerMessage = {
   type: 'apply-lut';
   imageData: ImageData;
   cube: Cube;
-}
+};
 
 export type LutWorkerResponse = {
   type: 'error' | 'lut-applied';
   result?: ImageData;
   error?: string;
-}
+};
 
 self.addEventListener('message', (event: MessageEvent<LutWorkerMessage>) => {
   const { type, imageData, cube } = event.data;

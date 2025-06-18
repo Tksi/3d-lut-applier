@@ -67,4 +67,3 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### 今後の実装予定領域
 
 - 高速化
-- ユーザーインターフェース（ファイルアップロード、プレビュー等）
