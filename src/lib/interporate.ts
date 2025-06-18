@@ -5,7 +5,7 @@
  * @param t - 補完係数（0.0-1.0）
  * @returns 補完された値
  */
-export const lerp = (a: number, b: number, t: number): number => {
+const lerp = (a: number, b: number, t: number): number => {
   return a + (b - a) * t;
 };
 
@@ -20,7 +20,7 @@ export const lerp = (a: number, b: number, t: number): number => {
  * @param ty - Y方向の補完係数（0.0-1.0）
  * @returns 補完された値
  */
-export const bilinear = (
+const bilinear = (
   x00: number,
   x10: number,
   x01: number,

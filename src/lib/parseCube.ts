@@ -1,4 +1,4 @@
-type Cube = {
+export type Cube = {
   title: string;
   size: number;
   domainMin: [number, number, number];
