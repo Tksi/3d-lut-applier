@@ -1,14 +1,16 @@
-import { applyLutToImageData } from 'lib/applyLut';
 import { drawImage, getImageData } from 'lib/canvas';
 import { type Cube, parseCube } from 'lib/parseCube';
+import type { LutWorkerMessage, LutWorkerResponse } from './workers/lutWorker';
 import './style.css';
 
 const originalCanvas = document.querySelector<HTMLCanvasElement>('#original')!;
 const appliedCanvas = document.querySelector<HTMLCanvasElement>('#applied')!;
 const container = document.querySelector<HTMLDivElement>('.canvas-container')!;
 const sliderLine = document.querySelector<HTMLDivElement>('.slider-line')!;
+const loadingOverlay = document.querySelector<HTMLDivElement>('#loading')!;
 
 let currentCube: Cube | null = null;
+let lutWorker: Worker | null = null;
 
 /**
  * 画像に3D LUTを適用してcanvasに描画
@@ -24,13 +26,64 @@ const processAndDrawImage = async (
       : imageSource,
   );
 
-  if (currentCube) {
-    const appliedImageData = applyLutToImageData(
-      getImageData(originalCanvas),
-      currentCube,
-    );
-    await drawImage(appliedCanvas, appliedImageData);
+  if (currentCube && lutWorker) {
+    const imageData = getImageData(originalCanvas);
+    await applyLutWithWorker(imageData, currentCube);
   }
+};
+
+/**
+ * ローディング状態を表示/非表示
+ * @param show 表示するかどうか
+ */
+const showLoading = (show: boolean) => {
+  loadingOverlay.style.display = show ? 'flex' : 'none';
+};
+
+/**
+ * Web WorkerでLUTを適用
+ * @param imageData 画像データ
+ * @param cube 3D LUTデータ
+ */
+const applyLutWithWorker = (
+  imageData: ImageData,
+  cube: Cube,
+): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    if (!lutWorker) {
+      reject(new Error('Worker not initialized'));
+
+      return;
+    }
+
+    showLoading(true);
+
+    const handleMessage = (event: MessageEvent<LutWorkerResponse>) => {
+      if (event.data.type === 'lut-applied') {
+        if (event.data.result) {
+          void drawImage(appliedCanvas, event.data.result);
+        }
+
+        lutWorker?.removeEventListener('message', handleMessage);
+        showLoading(false);
+        resolve();
+      } else if (event.data.type === 'error') {
+        lutWorker?.removeEventListener('message', handleMessage);
+        showLoading(false);
+        reject(new Error(event.data.error ?? 'Unknown worker error'));
+      }
+    };
+
+    lutWorker.addEventListener('message', handleMessage);
+
+    const message: LutWorkerMessage = {
+      type: 'apply-lut',
+      imageData,
+      cube,
+    };
+
+    lutWorker.postMessage(message);
+  });
 };
 
 /**
@@ -128,9 +181,21 @@ container.addEventListener('mousemove', (event) => {
   scheduleClipUpdate(mouseX, rect.width);
 });
 
+/**
+ * Web Workerを初期化
+ */
+const initializeWorker = () => {
+  lutWorker = new Worker(new URL('workers/lutWorker.ts', import.meta.url), {
+    type: 'module',
+  });
+};
+
 // 初期化処理
 const initializeApp = async () => {
   try {
+    // Web Workerを初期化
+    initializeWorker();
+
     // 3D LUTファイルを読み込み
     currentCube = await fetch('/lut.cube')
       .then((res) => res.text())
