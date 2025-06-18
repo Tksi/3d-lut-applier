@@ -30,6 +30,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **src/lib/parseCube.ts**: 3D LUT Cubeファイルの完全なパーサー実装
 - **src/lib/canvas.ts**: Canvas APIを使った画像描画機能
 - **src/lib/interporate.ts**: 線形・バイリニア・トリリニア補完アルゴリズム
+- **src/lib/applyLut.ts**: 3D LUT適用のメイン処理とピクセル変換
 - **public/lut.cube**: テスト用のサンプル3D LUTファイル
 - **public/img.avif**: テスト用のサンプル画像ファイル
 
@@ -61,9 +62,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Cubeファイルパーサー**: 完全なCubeフォーマット解析とバリデーション
 - **Canvas描画**: 画像の非同期読み込みとCanvas描画
 - **補完アルゴリズム**: 線形、バイリニア、トリリニア補完の実装
+- **3D LUT適用**: `applyLut.ts`でピクセル変換アルゴリズムが完全実装済み
 
 ### 今後の実装予定領域
 
-- 3D LUT適用のピクセル変換アルゴリズム
-- WebGL/WebGPUを使った高速処理
+- 高速化
 - ユーザーインターフェース（ファイルアップロード、プレビュー等）

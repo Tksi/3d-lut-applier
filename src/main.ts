@@ -1,23 +1,146 @@
 import { applyLutToImageData } from 'lib/applyLut';
 import { drawImage, getImageData } from 'lib/canvas';
-import { parseCube } from 'lib/parseCube';
+import { type Cube, parseCube } from 'lib/parseCube';
 import './style.css';
 
 const originalCanvas = document.querySelector<HTMLCanvasElement>('#original')!;
 const appliedCanvas = document.querySelector<HTMLCanvasElement>('#applied')!;
+const container = document.querySelector<HTMLDivElement>('.canvas-container')!;
+const sliderLine = document.querySelector<HTMLDivElement>('.slider-line')!;
 
-const [cube] = await Promise.all([
-  fetch('/lut.cube')
-    .then((res) => res.text())
-    .then((cubeText) => parseCube(cubeText)),
-  drawImage(originalCanvas, '/img.avif'),
-]);
+let currentCube: Cube | null = null;
 
-// 3D LUTを適用
-const appliedImageData = applyLutToImageData(
-  getImageData(originalCanvas),
-  cube,
-);
+/**
+ * 画像に3D LUTを適用してcanvasに描画
+ * @param imageSource 画像のソース（File、string、または画像要素）
+ */
+const processAndDrawImage = async (
+  imageSource: File | HTMLImageElement | string,
+) => {
+  await drawImage(
+    originalCanvas,
+    imageSource instanceof File
+      ? await createImageFromFile(imageSource)
+      : imageSource,
+  );
 
-// appliedCanvasに結果を描画
-await drawImage(appliedCanvas, appliedImageData);
+  if (currentCube) {
+    const appliedImageData = applyLutToImageData(
+      getImageData(originalCanvas),
+      currentCube,
+    );
+    await drawImage(appliedCanvas, appliedImageData);
+  }
+};
+
+/**
+ * FileオブジェクトからHTMLImageElementを作成
+ * @param file ファイルオブジェクト
+ * @returns HTMLImageElement
+ */
+const createImageFromFile = (file: File): Promise<HTMLImageElement> => {
+  const { promise, resolve, reject } =
+    Promise.withResolvers<HTMLImageElement>();
+
+  const img = new Image();
+  img.addEventListener('load', () => {
+    URL.revokeObjectURL(img.src);
+    resolve(img);
+  });
+  img.addEventListener('error', () => {
+    URL.revokeObjectURL(img.src);
+    reject(new Error('画像の読み込みに失敗しました'));
+  });
+
+  img.src = URL.createObjectURL(file);
+
+  return promise;
+};
+
+/**
+ * マウス位置に応じてcanvasのクリップ領域を更新
+ * @param percentage クリップする位置のパーセンテージ
+ */
+const updateClipPath = (percentage: number) => {
+  // appliedCanvasのクリップ領域を更新（右側を表示）
+  appliedCanvas.style.clipPath = `polygon(${percentage}% 0%, 100% 0%, 100% 100%, ${percentage}% 100%)`;
+
+  // スライダーラインの位置を更新
+  sliderLine.style.left = `${percentage}%`;
+};
+
+let animationFrameId: number | null = null;
+
+/**
+ * requestAnimationFrameを使用した最適化されたクリップ更新
+ * @param mouseX マウスのX座標（コンテナ内の相対位置）
+ * @param containerWidth コンテナの幅
+ */
+const scheduleClipUpdate = (mouseX: number, containerWidth: number) => {
+  // 前のフレームをキャンセル
+  if (animationFrameId !== null) {
+    cancelAnimationFrame(animationFrameId);
+  }
+
+  animationFrameId = requestAnimationFrame(() => {
+    const percentage = Math.max(
+      0,
+      Math.min(100, (mouseX / containerWidth) * 100),
+    );
+    updateClipPath(percentage);
+    animationFrameId = null;
+  });
+};
+
+// ドラッグ・アンド・ドロップイベントリスナーを追加
+container.addEventListener('dragover', (event) => {
+  event.preventDefault();
+  container.classList.add('drag-over');
+});
+
+container.addEventListener('dragleave', (event) => {
+  if (!container.contains(event.relatedTarget as Node)) {
+    container.classList.remove('drag-over');
+  }
+});
+
+container.addEventListener('drop', (event) => {
+  event.preventDefault();
+  container.classList.remove('drag-over');
+
+  const files = [...(event.dataTransfer?.files ?? [])];
+  const imageFile = files.find((file) => file.type.startsWith('image/'));
+
+  if (imageFile) {
+    processAndDrawImage(imageFile).catch((err) => {
+      console.error('画像処理エラー:', err);
+      alert('画像の処理に失敗しました');
+    });
+  } else {
+    alert('画像ファイルをドロップしてください');
+  }
+});
+
+// マウスイベントリスナーを追加
+container.addEventListener('mousemove', (event) => {
+  const rect = container.getBoundingClientRect();
+  const mouseX = event.clientX - rect.left;
+  scheduleClipUpdate(mouseX, rect.width);
+});
+
+// 初期化処理
+const initializeApp = async () => {
+  try {
+    // 3D LUTファイルを読み込み
+    currentCube = await fetch('/lut.cube')
+      .then((res) => res.text())
+      .then((cubeText) => parseCube(cubeText));
+
+    // 初期画像を読み込み
+    await processAndDrawImage('/img.avif');
+  } catch (err) {
+    console.error('初期化エラー:', err);
+  }
+};
+
+await initializeApp();
