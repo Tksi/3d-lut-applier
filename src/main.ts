@@ -61,7 +61,7 @@ const applyLutWithWorker = (
 
     const handleMessage = (event: MessageEvent<LutWorkerResponse>) => {
       if (event.data.type === 'lut-applied') {
-        if (event.data.result) {
+        if (event.data.result !== undefined) {
           void drawImage(appliedCanvas, event.data.result);
         }
 
@@ -71,7 +71,7 @@ const applyLutWithWorker = (
       } else if (event.data.type === 'error') {
         lutWorker?.removeEventListener('message', handleMessage);
         showLoading(false);
-        reject(new Error(event.data.error ?? 'Unknown worker error'));
+        reject(new Error(String(event.data.error ?? 'Unknown worker error')));
       }
     };
 
