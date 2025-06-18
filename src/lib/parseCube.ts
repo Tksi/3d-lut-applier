@@ -8,7 +8,7 @@ type Cube = {
 
 /**
  * Cubeファイルをパース
- * @param cubeText Cubeファイルのテキスト
+ * @param cubeText - Cubeファイルのテキスト
  */
 export const parseCube = (cubeText: string): Cube => {
   const cube: Cube = {
