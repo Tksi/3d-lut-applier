@@ -265,7 +265,7 @@ const initializeApp = async () => {
       const target = event.target as HTMLInputElement;
       const file = target.files?.[0];
 
-      if (file?.type.startsWith('image/')) {
+      if (file?.type.startsWith('image/') === true) {
         processAndDrawImage(file).catch((err) => {
           console.error('画像処理エラー:', err);
           alert('画像の処理に失敗しました');
