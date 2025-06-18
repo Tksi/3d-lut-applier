@@ -114,9 +114,10 @@ body {
   align-items: center;
 }
 
-#download-btn {
+#download-btn,
+#upload-btn {
   padding: 10px 20px;
-  background-color: #007acc;
+
   color: white;
   border: none;
   border-radius: 4px;
@@ -124,6 +125,14 @@ body {
   font-size: 14px;
   font-weight: bold;
   transition: background-color 0.2s;
+}
+
+#download-btn {
+  background-color: #007acc;
+}
+
+#upload-btn {
+  background-color: #28a745;
 }
 
 #download-btn:hover {

@@ -9,6 +9,8 @@ const container = document.querySelector<HTMLDivElement>('.canvas-container')!;
 const sliderLine = document.querySelector<HTMLDivElement>('.slider-line')!;
 const loadingOverlay = document.querySelector<HTMLDivElement>('#loading')!;
 const downloadBtn = document.querySelector<HTMLButtonElement>('#download-btn')!;
+const uploadBtn = document.querySelector<HTMLButtonElement>('#upload-btn')!;
+const imageInput = document.querySelector<HTMLInputElement>('#image-input')!;
 
 let currentCube: Cube | null = null;
 let lutWorker: Worker | null = null;
@@ -182,6 +184,29 @@ container.addEventListener('mousemove', (event) => {
   scheduleClipUpdate(mouseX, rect.width);
 });
 
+// タッチイベントリスナーを追加
+container.addEventListener('touchmove', (event) => {
+  event.preventDefault(); // スクロールを防ぐ
+  const rect = container.getBoundingClientRect();
+  const touch = event.touches[0];
+
+  if (touch) {
+    const touchX = touch.clientX - rect.left;
+    scheduleClipUpdate(touchX, rect.width);
+  }
+});
+
+container.addEventListener('touchstart', (event) => {
+  event.preventDefault(); // スクロールを防ぐ
+  const rect = container.getBoundingClientRect();
+  const touch = event.touches[0];
+
+  if (touch) {
+    const touchX = touch.clientX - rect.left;
+    scheduleClipUpdate(touchX, rect.width);
+  }
+});
+
 /**
  * Web Workerを初期化
  */
@@ -229,6 +254,29 @@ const initializeApp = async () => {
 
     // ダウンロードボタンのイベントリスナーを追加
     downloadBtn.addEventListener('click', downloadCanvasAsJpeg);
+
+    // アップロードボタンのイベントリスナーを追加
+    uploadBtn.addEventListener('click', () => {
+      imageInput.click();
+    });
+
+    // ファイル選択のイベントリスナーを追加
+    imageInput.addEventListener('change', (event) => {
+      const target = event.target as HTMLInputElement;
+      const file = target.files?.[0];
+
+      if (file?.type.startsWith('image/')) {
+        processAndDrawImage(file).catch((err) => {
+          console.error('画像処理エラー:', err);
+          alert('画像の処理に失敗しました');
+        });
+      } else if (file) {
+        alert('画像ファイルを選択してください');
+      }
+
+      // ファイル選択後にinputをクリア（同じファイルを再度選択可能にする）
+      target.value = '';
+    });
   } catch (err) {
     console.error('初期化エラー:', err);
   }
