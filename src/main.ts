@@ -1,3 +1,8 @@
+import { parseCube } from 'lib/parseCube';
 import './style.css';
 
-console.log(1);
+const cube = await fetch('/lut.cube')
+  .then((res) => res.text())
+  .then((cubeText) => parseCube(cubeText));
+
+console.log(cube);
