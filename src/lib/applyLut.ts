@@ -68,51 +68,55 @@ const applyLutToPixel = (
   const tg = gIndex - g0;
   const tb = bIndex - b0;
 
-  // 8つの頂点のLUT値を取得
-  const getLutValue = (ri: number, gi: number, bi: number, channel: number) => {
-    const index = (bi * size * size + gi * size + ri) * 3 + channel;
+  // 8つの頂点のベースインデックスを事前計算（高速化）
+  const sizeSquared = size * size;
+  const baseIndex000 = (b0 * sizeSquared + g0 * size + r0) * 3;
+  const baseIndex100 = (b0 * sizeSquared + g0 * size + r1) * 3;
+  const baseIndex010 = (b0 * sizeSquared + g1 * size + r0) * 3;
+  const baseIndex110 = (b0 * sizeSquared + g1 * size + r1) * 3;
+  const baseIndex001 = (b1 * sizeSquared + g0 * size + r0) * 3;
+  const baseIndex101 = (b1 * sizeSquared + g0 * size + r1) * 3;
+  const baseIndex011 = (b1 * sizeSquared + g1 * size + r0) * 3;
+  const baseIndex111 = (b1 * sizeSquared + g1 * size + r1) * 3;
 
-    return data[index] ?? 0;
-  };
-
-  // 各チャンネル（R, G, B）について補完
+  // 各チャンネル（R, G, B）について補完 - 直接インデックスアクセスで高速化
   const newR = trilinear(
-    getLutValue(r0, g0, b0, 0), // x000
-    getLutValue(r1, g0, b0, 0), // x100
-    getLutValue(r0, g1, b0, 0), // x010
-    getLutValue(r1, g1, b0, 0), // x110
-    getLutValue(r0, g0, b1, 0), // x001
-    getLutValue(r1, g0, b1, 0), // x101
-    getLutValue(r0, g1, b1, 0), // x011
-    getLutValue(r1, g1, b1, 0), // x111
+    data[baseIndex000] ?? 0, // x000
+    data[baseIndex100] ?? 0, // x100
+    data[baseIndex010] ?? 0, // x010
+    data[baseIndex110] ?? 0, // x110
+    data[baseIndex001] ?? 0, // x001
+    data[baseIndex101] ?? 0, // x101
+    data[baseIndex011] ?? 0, // x011
+    data[baseIndex111] ?? 0, // x111
     tr,
     tg,
     tb,
   );
 
   const newG = trilinear(
-    getLutValue(r0, g0, b0, 1),
-    getLutValue(r1, g0, b0, 1),
-    getLutValue(r0, g1, b0, 1),
-    getLutValue(r1, g1, b0, 1),
-    getLutValue(r0, g0, b1, 1),
-    getLutValue(r1, g0, b1, 1),
-    getLutValue(r0, g1, b1, 1),
-    getLutValue(r1, g1, b1, 1),
+    data[baseIndex000 + 1] ?? 0,
+    data[baseIndex100 + 1] ?? 0,
+    data[baseIndex010 + 1] ?? 0,
+    data[baseIndex110 + 1] ?? 0,
+    data[baseIndex001 + 1] ?? 0,
+    data[baseIndex101 + 1] ?? 0,
+    data[baseIndex011 + 1] ?? 0,
+    data[baseIndex111 + 1] ?? 0,
     tr,
     tg,
     tb,
   );
 
   const newB = trilinear(
-    getLutValue(r0, g0, b0, 2),
-    getLutValue(r1, g0, b0, 2),
-    getLutValue(r0, g1, b0, 2),
-    getLutValue(r1, g1, b0, 2),
-    getLutValue(r0, g0, b1, 2),
-    getLutValue(r1, g0, b1, 2),
-    getLutValue(r0, g1, b1, 2),
-    getLutValue(r1, g1, b1, 2),
+    data[baseIndex000 + 2] ?? 0,
+    data[baseIndex100 + 2] ?? 0,
+    data[baseIndex010 + 2] ?? 0,
+    data[baseIndex110 + 2] ?? 0,
+    data[baseIndex001 + 2] ?? 0,
+    data[baseIndex101 + 2] ?? 0,
+    data[baseIndex011 + 2] ?? 0,
+    data[baseIndex111 + 2] ?? 0,
     tr,
     tg,
     tb,

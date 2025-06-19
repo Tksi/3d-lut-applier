@@ -3,7 +3,7 @@ export type Cube = {
   size: number;
   domainMin: [number, number, number];
   domainMax: [number, number, number];
-  data: number[];
+  data: Float32Array;
 };
 
 /**
@@ -11,7 +11,7 @@ export type Cube = {
  * @param cubeText - Cubeファイルのテキスト
  */
 export const parseCube = (cubeText: string): Cube => {
-  const cube: Cube = {
+  const cube: Omit<Cube, 'data'> & { data: number[] } = {
     title: '',
     size: 0,
     domainMin: [0, 0, 0],
@@ -89,9 +89,18 @@ export const parseCube = (cubeText: string): Cube => {
 
   if (cube.data.length !== cube.size ** 3 * 3) {
     throw new Error(
-      `Invalid LUT data size: expected ${cube.size ** 3}, got ${cube.data.length}`,
+      `Invalid LUT data size: expected ${cube.size ** 3 * 3}, got ${cube.data.length}`,
     );
   }
 
-  return cube;
+  // 通常配列をFloat32Arrayに変換してメモリ効率とアクセス速度を向上
+  const finalCube: Cube = {
+    title: cube.title,
+    size: cube.size,
+    domainMin: cube.domainMin,
+    domainMax: cube.domainMax,
+    data: new Float32Array(cube.data),
+  };
+
+  return finalCube;
 };

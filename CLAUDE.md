@@ -41,7 +41,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `lib/interporate.ts` - 3D補間計算
 - `lib/canvas.ts` - Canvas描画ユーティリティ
 - `lib/WorkerPool.ts` - Web Worker プール管理（並列処理制御）
-- `workers/lutWorker.ts` - Web Worker（重い処理を別スレッド実行）
 - `workers/lutChunkWorker.ts` - チャンク単位の並列LUT処理Worker
 
 ### 技術特徴
