@@ -1,10 +1,11 @@
 import { WorkerPool } from 'lib/WorkerPool';
 import { drawImage, getImageData } from 'lib/canvas';
 import { type Cube, parseCube } from 'lib/parseCube';
+import workerUrl from 'workers/lutChunkWorker.ts?worker&url';
 import type {
   LutChunkWorkerMessage,
   LutChunkWorkerResponse,
-} from './workers/lutChunkWorker';
+} from 'workers/lutChunkWorker';
 import './style.css';
 
 const originalCanvas = document.querySelector<HTMLCanvasElement>('#original')!;
@@ -67,10 +68,8 @@ const applyLutWithWorkerPool = (
     const chunkHeight = Math.ceil(height / workerCount);
     const chunks = new Array<ImageData | undefined>(workerCount);
 
-    const workerUrl = new URL('workers/lutChunkWorker.ts', import.meta.url);
-
     const workerPool = new WorkerPool<LutChunkWorkerResponse>(
-      workerUrl.href,
+      workerUrl,
       (result: LutChunkWorkerResponse) => {
         if (
           result.type === 'chunk-processed' &&
