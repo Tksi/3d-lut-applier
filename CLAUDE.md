@@ -4,66 +4,65 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## プロジェクト概要
 
-3D LUT（Lookup Table）のCubeファイルをCanvasに適用するTypeScriptプロジェクトです。Vite + TypeScriptで構築されたWebアプリケーションで、現在はCubeファイルパーサーが実装済みです。
+3D LUT（Look-Up Table）をCanvasに適用するWebアプリケーション。Cubeファイル形式の3D LUTを使用して画像のカラーグレーディングを行い、処理前後の画像を比較表示する。
 
 ## 開発コマンド
 
-### 基本的な開発フロー
+### 基本開発コマンド
 
 - `npm run dev` - 開発サーバー起動
-- `npm run build` - 本番ビルド
-- `npm run preview` - ビルド結果のプレビュー
+- `npm run build` - TypeScript＋Viteビルド
+- `npm run preview` - Wranglerでプレビュー（本番環境相当）
+- `npm run deploy` - ビルド＋Cloudflare Pagesデプロイ
 
-### コード品質チェック
+### コード品質チェック・フォーマット
 
-- `npm run checkall` - すべてのチェックを一括実行（format、lint、type）
 - `npm run format:check` - Prettierフォーマットチェック
-- `npm run lint:check` - ESLintによるリンティング
-- `npm run type:check` - TypeScriptの型チェック
-- `npm run fix` - 自動修正（format、lint、type）
+- `npm run lint:check` - ESLintチェック（キャッシュ有効）
+- `npm run type:check` - TypeScriptタイプチェック
+- `npm run checkall` - 全チェック実行
+- `npm run fix` - フォーマット修正＋リント修正＋タイプチェック
 
 ## アーキテクチャ
 
-### メイン構造
+### 処理の流れ
 
-- **src/main.ts**: アプリケーションのエントリーポイント、Canvas描画とCubeファイル読み込みの統合
-- **src/lib/parseCube.ts**: 3D LUT Cubeファイルの完全なパーサー実装
-- **src/lib/canvas.ts**: Canvas APIを使った画像描画機能
-- **src/lib/interporate.ts**: 線形・バイリニア・トリリニア補完アルゴリズム
-- **src/lib/applyLut.ts**: 3D LUT適用のメイン処理とピクセル変換
-- **public/lut.cube**: テスト用のサンプル3D LUTファイル
-- **public/img.avif**: テスト用のサンプル画像ファイル
+1. **画像読み込み**: ドラッグ＆ドロップまたはファイル選択で画像を読み込み
+2. **LUT読み込み**: 起動時に`/lut.cube`ファイルをフェッチしてパース
+3. **Worker処理**: Web Workerでバックグラウンドで3D LUT適用
+4. **Canvas描画**: 元画像と処理後画像をCanvasに描画
+5. **比較表示**: マウス/タッチでスライダー表示による比較
 
-### 重要な設計パターン
+### 主要モジュール構成
 
-- **モジュール分離**: `lib/`フォルダでユーティリティ関数を分離
-- **厳密な型チェック**: TypeScript設定で安全性を重視
-- **パスエイリアス**: `baseUrl: "./src"`でインポートパスを簡潔化
-- **ES Modules**: モダンなモジュールシステムを使用
+- `main.ts` - メインアプリケーション、UI操作、ワーカー管理
+- `lib/parseCube.ts` - Cubeファイルパーサー
+- `lib/applyLut.ts` - 3D LUT適用ロジック（トリリニア補間）
+- `lib/interporate.ts` - 3D補間計算
+- `lib/canvas.ts` - Canvas描画ユーティリティ
+- `lib/WorkerPool.ts` - Web Worker プール管理（並列処理制御）
+- `workers/lutWorker.ts` - Web Worker（重い処理を別スレッド実行）
+- `workers/lutChunkWorker.ts` - チャンク単位の並列LUT処理Worker
 
-### Cubeファイルパーサーの仕様
+### 技術特徴
 
-`parseCube.ts`は以下の機能を提供：
+- **Web Worker Pool**: 並列チャンク処理でパフォーマンス最適化
+- **タッチ対応**: モバイルデバイス対応
+- **Canvas比較UI**: スライダーでリアルタイム比較
+- **3D補間**: トリリニア補間による高品質な色変換
+- **Cloudflare Pages**: 本番環境はCloudflare Pagesを使用
 
-- TITLE、LUT_3D_SIZE、DOMAIN_MIN/MAX、LUTデータポイントの解析
-- 厳密なバリデーションとエラーハンドリング
-- RGB値の配列として3D LUTデータを格納
-- 完全なCubeフォーマット準拠
+### 設定・ツール
 
-### 開発時の注意点
+- TypeScript設定: `tsconfig.json`
+- Vite設定: パス解決、ES2024ターゲット
+- ESLint設定: 厳格なTypeScript/Unicornルール、import順序
+- Prettier設定: gitignoreベース
+- Wrangler設定: Cloudflare Pages向け設定
 
-- ESLintで厳格なコード品質ルールを適用
-- JSDocコメントが必須
-- import順序の規則が厳格
-- Prettierとの連携でコードフォーマットを統一
+## 開発時の注意
 
-### 実装済み機能
-
-- **Cubeファイルパーサー**: 完全なCubeフォーマット解析とバリデーション
-- **Canvas描画**: 画像の非同期読み込みとCanvas描画
-- **補完アルゴリズム**: 線形、バイリニア、トリリニア補完の実装
-- **3D LUT適用**: `applyLut.ts`でピクセル変換アルゴリズムが完全実装済み
-
-### 今後の実装予定領域
-
-- 高速化
+- リント・タイプエラーが発生した場合は `npm run checkall` で確認
+- コードは JSDocコメント必須（publicな関数・クラス）
+- import順序・型定義はESLintルールに従う
+- Web Workerのメッセージ型は厳密に定義済み

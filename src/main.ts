@@ -1,6 +1,10 @@
+import { WorkerPool } from 'lib/WorkerPool';
 import { drawImage, getImageData } from 'lib/canvas';
 import { type Cube, parseCube } from 'lib/parseCube';
-import type { LutWorkerMessage, LutWorkerResponse } from './workers/lutWorker';
+import type {
+  LutChunkWorkerMessage,
+  LutChunkWorkerResponse,
+} from './workers/lutChunkWorker';
 import './style.css';
 
 const originalCanvas = document.querySelector<HTMLCanvasElement>('#original')!;
@@ -13,7 +17,6 @@ const uploadBtn = document.querySelector<HTMLButtonElement>('#upload-btn')!;
 const imageInput = document.querySelector<HTMLInputElement>('#image-input')!;
 
 let currentCube: Cube | null = null;
-let lutWorker: Worker | null = null;
 
 /**
  * 画像に3D LUTを適用してcanvasに描画
@@ -22,6 +25,7 @@ let lutWorker: Worker | null = null;
 const processAndDrawImage = async (
   imageSource: File | HTMLImageElement | string,
 ) => {
+  console.time('Timer');
   showLoading(true);
 
   await drawImage(
@@ -31,10 +35,13 @@ const processAndDrawImage = async (
       : imageSource,
   );
 
-  if (currentCube && lutWorker) {
+  if (currentCube) {
     const imageData = getImageData(originalCanvas);
-    await applyLutWithWorker(imageData, currentCube);
+    await applyLutWithWorkerPool(imageData, currentCube);
   }
+
+  showLoading(false);
+  console.timeEnd('Timer');
 };
 
 /**
@@ -46,47 +53,94 @@ const showLoading = (show: boolean) => {
 };
 
 /**
- * Web WorkerでLUTを適用
+ * WorkerPoolを使って並列でLUTを適用
  * @param imageData 画像データ
  * @param cube 3D LUTデータ
  */
-const applyLutWithWorker = (
+const applyLutWithWorkerPool = (
   imageData: ImageData,
   cube: Cube,
 ): Promise<void> => {
   return new Promise((resolve, reject) => {
-    if (!lutWorker) {
-      reject(new Error('Worker not initialized'));
+    const { width, height } = imageData;
+    const workerCount = navigator.hardwareConcurrency || 4;
+    const chunkHeight = Math.ceil(height / workerCount);
+    const chunks = new Array<ImageData | undefined>(workerCount);
 
-      return;
+    const workerUrl = new URL('workers/lutChunkWorker.ts', import.meta.url);
+
+    const workerPool = new WorkerPool<LutChunkWorkerResponse>(
+      workerUrl.href,
+      (result: LutChunkWorkerResponse) => {
+        if (
+          result.type === 'chunk-processed' &&
+          result.result &&
+          result.chunkIndex !== undefined
+        ) {
+          chunks[result.chunkIndex] = result.result;
+        } else if (result.type === 'error') {
+          reject(new Error(result.error ?? 'Unknown worker error'));
+        }
+      },
+      () => {
+        // すべてのチャンクが処理完了したら結合
+        const finalImageData = mergeChunks(chunks, width, height);
+        void drawImage(appliedCanvas, finalImageData);
+        resolve();
+      },
+      workerCount,
+    );
+
+    // 各チャンクを処理
+    for (let i = 0; i < workerCount; i++) {
+      const startRow = i * chunkHeight;
+      const endRow = Math.min((i + 1) * chunkHeight, height);
+
+      if (startRow < height) {
+        const message: LutChunkWorkerMessage = {
+          type: 'apply-lut-chunk',
+          imageData,
+          cube,
+          startRow,
+          endRow,
+          chunkIndex: i,
+        };
+
+        workerPool.add(message);
+      }
     }
 
-    const handleMessage = (event: MessageEvent<LutWorkerResponse>) => {
-      if (event.data.type === 'lut-applied') {
-        if (event.data.result !== undefined) {
-          void drawImage(appliedCanvas, event.data.result);
-        }
-
-        lutWorker?.removeEventListener('message', handleMessage);
-        showLoading(false);
-        resolve();
-      } else if (event.data.type === 'error') {
-        lutWorker?.removeEventListener('message', handleMessage);
-        showLoading(false);
-        reject(new Error(String(event.data.error ?? 'Unknown worker error')));
-      }
-    };
-
-    lutWorker.addEventListener('message', handleMessage);
-
-    const message: LutWorkerMessage = {
-      type: 'apply-lut',
-      imageData,
-      cube,
-    };
-
-    lutWorker.postMessage(message);
+    workerPool.fix();
   });
+};
+
+/**
+ * 処理されたチャンクを結合して元のサイズのImageDataを作成
+ * @param chunks 処理されたチャンクの配列
+ * @param width 元の画像の幅
+ * @param height 元の画像の高さ
+ * @returns 結合されたImageData
+ */
+const mergeChunks = (
+  chunks: (ImageData | undefined)[],
+  width: number,
+  height: number,
+): ImageData => {
+  const mergedData = new Uint8ClampedArray(width * height * 4);
+  let currentRow = 0;
+
+  for (const chunk of chunks) {
+    if (chunk !== undefined) {
+      const chunkHeight = chunk.height;
+      const startPixel = currentRow * width * 4;
+      const chunkData = chunk.data;
+
+      mergedData.set(chunkData, startPixel);
+      currentRow += chunkHeight;
+    }
+  }
+
+  return new ImageData(mergedData, width, height);
 };
 
 /**
@@ -208,15 +262,6 @@ container.addEventListener('touchstart', (event) => {
 });
 
 /**
- * Web Workerを初期化
- */
-const initializeWorker = () => {
-  lutWorker = new Worker(new URL('workers/lutWorker.ts', import.meta.url), {
-    type: 'module',
-  });
-};
-
-/**
  * appliedCanvasの内容をJPEGとしてダウンロード
  */
 const downloadCanvasAsJpeg = () => {
@@ -241,9 +286,6 @@ const downloadCanvasAsJpeg = () => {
 // 初期化処理
 const initializeApp = async () => {
   try {
-    // Web Workerを初期化
-    initializeWorker();
-
     // 3D LUTファイルを読み込み
     currentCube = await fetch('/lut.cube')
       .then((res) => res.text())
